@@ -7,25 +7,30 @@ This project compares statistical and deep learning methods for forecasting dail
 
 predictPM25/
 ├── project_files/
-    |__ figures/
-    |__ processed_data/
+│   ├── figures/
+│   ├── processed_data/
 │   └── scripts/
 │       ├── exploratory_data_analysis.ipynb
+│       ├── manual_modelling.ipynb
 │       ├── pm25_data_cleaning.ipynb
 │       ├── pm25_LA_preprocessing.ipynb
 │       ├── pm25_sarimax.ipynb
 │       └── pm25_transformer.ipynb
-└── README.md
-|__ Requirements.txt
-|__ start_here.ipynb
+├── README.md
+├── Requirements.txt
+└── start_here.ipynb
 
 
 
 ## Notebooks
-| [LA Preprocessing](project_files/scripts/pm25_LA_preprocessing.ipynb) | PurpleAir sensor data (California), filtered to Los Angeles|
+| [LA Preprocessing](project_files/scripts/pm25_LA_preprocessing.ipynb) | PurpleAir sensor data (California), filtered to Los Angeles |
+
 | [Data Cleaning](project_files/scripts/pm25_data_cleaning.ipynb) | Los Angeles data cleaning and quality checks |
+
 | [Exploratory Data Analysis](project_files/scripts/exploratory_data_analysis.ipynb) | Statistical analysis, distribution, seasonality, and correlation analysis |
+
 | [SARIMAX](project_files/scripts/pm25_sarimax.ipynb) | Seasonal ARIMA with exogenous variables modelling and evaluation |
+
 | [Transformer](project_files/scripts/pm25_transformer.ipynb) | Transformer-based deep learning model for PM2.5 prediction |
 
 
@@ -50,5 +55,6 @@ predictPM25/
 
 ## Authors
 Wanxin Li      - University of Missouri School of Natural Resources
+
 Ibadet Ozdemir - University of Missouri Institute for Data Science and Informatics
 
