@@ -9,6 +9,8 @@ predictPM25/
 ├── project_files/
 │   ├── figures/
 │   ├── processed_data/
+│   ├── best_model/
+│   ├── model_predict/
 │   └── scripts/
 │       ├── exploratory_data_analysis.ipynb
 │       ├── manual_modelling.ipynb
