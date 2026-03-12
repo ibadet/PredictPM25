@@ -4,7 +4,7 @@
 This project compares statistical and deep learning methods for forecasting daily PM2.5 concentrations in Los Angeles (LA) County using PurpleAir sensor data from 2017 to 2022. We use three models: ARIMA, SARIMAX, and an encoder-only Transformer with multivariate inputs and cyclic calendar features. All models are trained on data from 2017 to 2020, validated on 2021 data, and tested in 2022. 
 
 ## Project Structure
-
+```
 predictPM25/
 ├── project_files/
 │   ├── figures/
@@ -20,7 +20,7 @@ predictPM25/
 ├── Requirements.txt
 └── start_here.ipynb
 
-
+```
 
 ## Notebooks
 | [LA Preprocessing](project_files/scripts/pm25_LA_preprocessing.ipynb) | PurpleAir sensor data (California), filtered to Los Angeles |
