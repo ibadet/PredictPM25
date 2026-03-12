@@ -1,0 +1,353 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+
+\begin{document}
+
+\title{Daily PM2.5 Forecasting Using Statistical and Transformer-based Time Series Models: A Case Study in Los Angeles County}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Wanxin Li}
+\IEEEauthorblockA{\textit{School of Natural Resources} \\
+\textit{University of Missouri -- Columbia}\\
+Columbia, MO, USA \\
+wl2g7@umsystem.edu}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Ozdemir Ibadet}
+\IEEEauthorblockA{\textit{MU Institute for Data Science and Informatics} \\
+\textit{University of Missouri -- Columbia}\\
+Columbia, MO, USA \\
+io3mw@missouri.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+This paper compares statistical and deep learning methods for forecasting daily PM2.5 concentrations in Los Angeles (LA) County using PurpleAir sensor data from 2017 to 2022. We use three models: ARIMA , SARIMAX, and an encoder-only Transformer with multivariate inputs and cyclic calendar features. All models are trained on 2017-2020 data, validated on 2021, and tested in 2022. The Transformer model reaches the best performance with a mean absolute error (MAE) of 3.56 $\mu$g/m$^3$ at the 1-day ahead horizon, better than SARIMAX (MAE = 5.34 $\mu$g/m$^3$) and ARIMA (MAE = 5.90 $\mu$g/m$^3$) by 40\% and 33\% respectively. The results show that the Transformer maintains useful forecast accuracy. Findings show that deep learning networks can better represent nonlinear temporal patterns within air quality data, though all models successfully predict extreme pollution events driven by wildfires.
+\end{abstract}
+
+\begin{IEEEkeywords}
+PM2.5, time series forecasting, SARIMAX, Transformer, Los Angeles, PurpleAir, air quality
+\end{IEEEkeywords}
+
+% -------------------------------------------------------
+\section{Introduction}
+
+Fine particulate matter with an aerodynamic diameter less than 2.5 micrometers (PM2.5) is among the most harmful air pollutants to human health. The level of PM2.5 is associated with increased risk of cardiovascular disease, respiratory illness, and premature mortality~\cite{pope2002}. In Los Angeles County, PM2.5 levels are determined by heavy vehicular traffic on one of the largest freeway networks in the world and wildfire smoke events that can push daily concentrations far above the U.S. EPA 24-hour standard of 35 $\mu$g/m$^3$. With increasing wildfire frequency and severity in the western United States, accurate short-term PM2.5 forecasting is critical for  public health and informing air quality management decisions.
+
+Classical statistical models such as ARIMA have long been used for air quality forecasting since their simplicity, interpretability, and well-understood theoretical properties~\cite{box2015}. However, the ARIMA model assumes linearity and is not sensitive to nonlinear relationships between meteorological variables and PM2.5. Deep learning approaches, particularly the self-attention-based Transformer architectures ~\cite{vaswani2017},  can learn temporal patterns directly from multivariate data.
+
+The PurpleAir crowdsourced sensor network provides an opportunity to study urban air quality at high spatial density and low cost. In this study, we aggregate hourly PM2.5 readings from all PurpleAir sensors in LA County into a single county-level time series and build three increasingly complex forecasting models. Our goal is to evaluate whether the added complexity of seasonal structure, meteorological covariates, and nonlinear deep learning models each improves forecast accuracy for a real-world urban dataset.
+
+% -------------------------------------------------------
+\section{Literature Review}
+
+\subsection{PM2.5 and Public Health}
+PM2.5 exposure is associated with increased risk of cardiovascular disease, respiratory illness, and premature mortality~\cite{pope2002}. The WHO annual PM2.5 guideline from 10 $\mu$g/m$^3$ to 5 $\mu$g/m$^3$ in 2021, indicating increasing risks of health impacts at concentration levels previously considered safe~\cite{who2021}. In Los Angeles, PM2.5 is driven by traffic emissions and industrial sources. During the wildfire impact period,  the short-term PM2.5 spikes far exceeded the U.S. EPA 24-hour standard of 35 $\mu$g/m$^3$~\cite{epa2024}. These health implications underline the public health value of accurate short-term PM2.5 forecasting for issuing timely health warnings.
+
+\subsection{Statistical Methods for Air Quality Forecasting}
+ARIMA and its seasonal extension SARIMA have been widely applied to air quality time series due to their interpretability and solid theoretical foundations~\cite {box2015}. Meteorological variables as inputs into the SARIMAX framework have been shown to improve forecast accuracy compared to univariate models, as temperature and humidity are directly related to PM2.5 accumulation and dispersion~\cite{knaak2025}. However, the linearity assumption of ARIMA-family models fundamentally limits their ability to reflect complex nonlinear associations between pollution and meteorological variables, particularly during some extreme events such as wildfires.
+
+\subsection{Deep Learning for Time Series Forecasting}
+Transformer architectures, introduced by Vaswani et al.~\cite{vaswani2017} for natural language processing, have been successfully adapted for time series forecasting. Their self-attention module permits the model to directly attend to any position in the input sequence, modeling long-range time-based dependencies more effectively than sequential recurrent models. The Informer~\cite{zhou2021} Transformer demonstrated that attention-based models can substantially outperform classical statistical methods on long-horizon forecasting benchmarks, motivating the application of Transformer-based models to environmental forecasting tasks such as PM2.5 prediction.
+% -------------------------------------------------------
+\section{Data Description}
+
+\subsection{Data Source}
+PurpleAir low-cost optical particle counters deployed across Los Angeles County, California. PurpleAir sensors are consumer-grade optical particle counters widely adopted by citizen scientists and environmental organizations due to their low cost and dense spatial coverage. All sensor readings within LA County are averaged each calendar day to produce a single county-level PM2.5 value using the CF=1 correction factor (pm25\_cf\_1), which is the standard factory calibration for outdoor deployments. Two meteorological variables --- relative humidity (\%) and ambient temperature ($^\circ$C) --- are also recorded by the sensors and used as additional model inputs. The final dataset spans January 2017 through December 2022, totaling 2,191 days.
+
+\subsection{Data Preprocessing}
+Raw data were downloaded from the PurpleAir API as CSV files for the state of California, totaling more than 10 GB. The LA County shapefile was used to filter sensor points within the LA County polygon. The data from 2017 to 2022 was filtered in LA County before merging, which was found to be more computationally effective than filtering after merging. For the original datasets, PM2.5 above 500 $\mu$g/m$^3$ are flagged and removed as outliers before aggregating hourly to daily, consistent with EPA guidance on screening low-cost sensor data. Daily averages were computed across all active sensors after cleaning.
+
+\subsection{Data Cleaning}
+Two variables require cleaning prior to modeling. The pressure has approximately 11 months (342 days) of missing values in 2017--2018. Given the large missing period across almost one year, the pressure variable was excluded entirely from analysis.
+
+The temperature variable contained 183 observations with values up to $4 \times 10^7$ $^\circ$C, clearly the result of ADC encoding errors in the embedded sensor hardware. These values were set to NaN and imputed using linear interpolation with a maximum gap of 7 days. For gaps exceeding 7 days, monthly median temperatures were used as a fallback. Fig.~\ref{fig_temp} illustrates the temperature series before and after cleaning.
+
+After cleaning, the final dataset contains three variables (PM2.5, humidity, temperature) with no missing values across 2,191 days.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{fig_temperature_cleaning.png}}
+\caption{Temperature variable before and after cleaning. Anomalous values up to $4\times10^7$ $^\circ$C (ADC encoding errors) are removed and replaced by linear interpolation.}
+\label{fig_temp}
+\end{figure}
+
+
+
+\subsection{Data Statistics}
+Table~\ref{tab_desc} summarizes the descriptive statistics of the PM2.5 value and the other two variables computed on the training set (2017--2020). The PM2.5 series exhibits high variability (std = 8.6 $\mu$g/m$^3$) relative to its mean (12.4 $\mu$g/m$^3$), with extreme values surpassing 90 $\mu$g/m$^3$ during major wildfire events in 2018 and 2020. This high variability and the presence of sporadic extreme values represent the primary forecasting challenge in this dataset. Fig.~\ref{fig_allvars} shows the full cleaned time series of all three variables, illustrating the seasonal variation in PM2.5 and its co-variation with temperature and humidity.
+
+\begin{table}[htbp]
+\caption{Descriptive Statistics --- Training Set (2017--2020)}
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
+\hline
+PM2.5 ($\mu$g/m$^3$) & 12.4 & 8.6 & 1.2 & 95.3 \\
+\hline
+Humidity (\%) & 58.3 & 15.2 & 18.4 & 94.7 \\
+\hline
+Temperature ($^\circ$C) & 18.6 & 5.4 & 4.1 & 36.2 \\
+\hline
+\end{tabular}
+\label{tab_desc}
+\end{center}
+\end{table}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{fig_all_variables_clean.png}}
+\caption{Full cleaned time series of PM2.5, humidity, and temperature (2017--2022). Wildfire-driven PM2.5 spikes are visible in 2018, 2020, and 2021.}
+\label{fig_allvars}
+\end{figure}
+
+\subsection{Data Split}
+The 7-year dataset is divided into three non-overlapping periods to prevent data leakage. The training set spans 2017--2020 (1,461 days) and covers several major Southern California wildfire seasons, including the 2018 Camp Fire and 2020 Creek Fire. Year 2021 (365 days) was used for validation and model tuning. Year 2022 (365 days) was used as the test set and was held out until final evaluation, ensuring unbiased performance estimates.
+% -------------------------------------------------------
+
+\section{Exploratory Data Analysis}
+
+A comprehensive exploratory data analysis (EDA) was conducted prior to model development to examine the temporal dynamics of the PM2.5 dataset collected for Los Angeles. The analysis begins with monthly temporal trends and also includes weekly comparison and correlation analysis.
+
+Fig.  ~\ref{fig_daily_pm25}  shows the time series of daily average PM2.5 concentrations in Los Angeles. A generally high baseline is observed in the graph, with sharp, episodic increases concentrated in the fall months of 2017, 2018, and especially 2020. The effect of wildfire smoke, which is a primary contributor to high PM2.5 levels in Southern California, supports these temporary increases.
+
+\begin{figure}[htbp]
+    \centerline{\includegraphics[width=\columnwidth]{fig_pm25_dailyaverage.png}}
+    \caption{Daily Average PM2.5 in Los Angeles.}
+    \label{fig_daily_pm25}
+\end{figure}
+
+Fig ~\ref{fig_histogram} presents a frequency histogram along with a kernel density estimation (KDE) layer reflecting the distributional characteristics of PM2.5. PM2.5 concentrations in Los Angeles exhibit an abnormal right-skewed distribution. Most observations cluster in the 5–15 µg/m³ range. The long tail extends up to 100 µg/m³, indicating rare but extreme pollution spikes. The idea that standard approaches assuming normality may not be appropriate is highlighted by the non-normal and positively skewed shape. Therefore, the logarithmic transformation of PM2.5 values can be evaluated in modeling steps.
+\begin{figure}[htbp]
+    \centerline{\includegraphics[width=\columnwidth]{fig_pm25_histogram.png}}
+    \caption{Distribution of PM2.5 in Los Angeles.}
+    \label{fig_histogram}
+\end{figure}
+
+To better examine the seasonal trend, monthly average PM2.5 concentrations with $\pm$1 standard deviation bands are shown in Fig. ~\ref{fig_monthly_avg}. Significant increases of approximately 27 and 21 $\mu$g/m$^3$ are observed in late 2017 and 2018. This generally coincides with the California wildfire seasons, which show an increase in the fall. The most dramatic increase occurred in the fall of 2020, with figures reaching a monthly average of approximately 34 $\mu$g/m$^3$. This coincides with the record-breaking 2020 California wildfire season. Concentration peaks between October and January, reflecting a clear autumn seasonality, are visible in the graph. This may be due to wildfire smoke and temperature inversions trapping pollutants near the surface during winter. In 2022, however, a decrease in PM2.5 levels has been observed, with levels below the EPA standard of 9 $\mu$g/m$^3$ in some months.
+
+\begin{figure}[htbp]
+    \centerline{\includegraphics[width=\columnwidth]{fig_pm25_monthly_avg.png}}
+    \caption{Monthly Average PM2.5 in Los Angeles.}
+    \label{fig_monthly_avg}
+\end{figure}
+
+Weekday and weekend PM2.5 concentrations are compared in Fig. ~\ref{fig_weekday_weekend}. Due to traffic volume and industrial activity, higher pollution levels are expected on weekdays in many urban environments. However, looking at the graph, the weekday-weekend comparison shows only weak weekly seasonality for Los Angeles. Consequently, it can be inferred that PM2.5 variability is more strongly influenced by meteorological and wildfire factors than by human activity cycles.
+\begin{figure}[htbp]
+    \centerline{\includegraphics[width=\columnwidth]{fig_pm25_weekday_weekend.png}}
+    \caption{Average PM2.5: Weekday vs Weekend.}
+    \label{fig_weekday_weekend}
+\end{figure}
+
+Finally, a correlation analysis between PM2.5, temperature, and humidity was performed to examine the effect of meteorological variables on PM2.5 concentrations. The correlation heatmap in Fig. ~\ref{fig_heatmap} shows that there is no strong linear relationship between these variables for the Los Angeles dataset used in this study.
+\begin{figure}[htbp]
+    \centerline{\includegraphics[width=\columnwidth]{fig_pm25_correlation_heatmap.png}}
+    \caption{Correlation Matrix: PM2.5, Humidity, and Temperature.}
+    \label{fig_heatmap}
+\end{figure}
+
+\section{Methodology}
+
+\subsection{ARIMA Baseline}
+We implement ARIMA(p,d,q) as a univariate statistical baseline using only the PM2.5 series. The differencing order $d=0$ was confirmed by the Augmented Dickey-Fuller (ADF) test applied to the training series (test statistic = $-9.82$, p $<$ 0.001), rejecting the null hypothesis of a unit root and confirming stationarity in levels. The AR order $p=1$ and MA order $q=1$ were selected by inspection of the ACF and PACF plots: the PACF cuts off sharply after lag 1 while the ACF decays gradually, the canonical signature of an ARMA(1,1) process. The model includes no seasonal component or external covariates, serving as a lower-bound reference. Fig.~\ref{fig_acf} shows the ACF and PACF plots used for order selection.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{fig_sarimax_acf_pacf.png}}
+\caption{ACF and PACF of daily PM2.5 training series (2017--2020). PACF cuts off after lag 1, supporting $p=1$. ACF tails off gradually, supporting $q=1$.}
+\label{fig_acf}
+\end{figure}
+
+\subsection{SARIMAX}
+We use SARIMAX(1,0,1)(1,0,1,7), which extends the ARIMA baseline in two ways. First, a seasonal component with period $s=7$ captures the weekly PM2.5 cycle caused by weekday/weekend differences in traffic and industrial activity. Since the series is already stationary, we set $D=0$. Second, relative humidity and temperature are added as exogenous variables to account for meteorological effects on PM2.5 levels.
+
+The model is fitted to the combined 2017--2021 data using maximum likelihood estimation, then used to forecast the entire 2022 test period in a single pass, with observed meteorological values as inputs. Predicted values are clipped to zero since PM2.5 cannot be negative.
+
+
+
+\subsection{Encoder-only Transformer}
+We implement a multivariate encoder-only Transformer for multi-step PM2.5 forecasting. The model takes a 14-day lookback window and predicts PM2.5 for the subsequent 7 days.
+
+\textit{Input features:} Seven features are used --- PM2.5, humidity, temperature, and cyclic sin/cos encodings of day-of-week (period 7) and month (period 12). Cyclic encodings preserve calendar continuity, ensuring that adjacent days of the week and months are represented as adjacent in feature space.
+
+\textit{Architecture:} Inputs are linearly projected to a 32-dimensional embedding, sinusoidal positional encodings are added to inject temporal position information, and the sequence is processed by one Transformer encoder layer with 4 attention heads and feed-forward dimension 128. The representation at the final timestep is passed through a linear output head to produce the 7-step forecast.
+
+\textit{Training:} All input features are standardized using a StandardScaler fitted on the training set only, preventing data leakage. A separate scaler is applied to the PM2.5 target for inverse transformation. The model is trained with MSE loss and the Adam optimizer (lr = $5 \times 10^{-4}$) for up to 200 epochs with batch size 32. A ReduceLROnPlateau scheduler halves the learning rate when validation loss stagnates for 10 consecutive epochs. Early stopping with patience 40 saves the best checkpoint. Dropout ($p = 0.2$) and gradient clipping (max\_norm = 1.0) are applied for regularization.
+
+\textit{Key hyperparameters include:}  lookback window 14 days, forecast horizon 7 days, embedding dimension 32, 4 attention heads, dropout $p=0.2$, and learning rate $5\times10^{-4}$.
+
+
+
+
+% -------------------------------------------------------
+\begin{figure*}[t]
+\centerline{\includegraphics[width=\textwidth]{fig_transformer_forecast_t1.png}}
+\caption{Transformer 1-day ahead forecast compare the actual PM2.5 on the test Set 2022.}
+\label{fig_t1}
+ \end{figure*}
+
+\begin{figure*}[t]
+\centerline{\includegraphics[width=\textwidth]{fig2.png}}
+\caption{Full timeline of actual PM2.5 vs.\ all model predictions (2017--2022). Shaded regions indicate train (blue), validation (orange), and test (green) periods.}
+\label{fig_timeline}
+\end{figure*}
+
+\begin{figure*}[t]
+\centerline{\includegraphics[width=\textwidth]{fig_model_comparison.png}}
+\caption{Close-up of 1-day ahead forecasts from all three models vs.\ actual PM2.5 on the 2022 test set.}
+\label{fig_comparison}
+\end{figure*}
+
+\section{Results and Discussion}
+
+\subsection{Overall Performance}
+Table~\ref{tab_results} summarizes test set performance for all three models on the 2022 held-out data. The Transformer is evaluated at the t+1 horizon for a direct comparison with the 1-step forecasts produced by SARIMAX and ARIMA.
+
+
+
+
+\begin{table}[htbp]
+\caption{Test Set Performance --- Los Angeles County PM2.5 (2022)}
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Model} & \textbf{MAE} & \textbf{RMSE} & \textbf{MAPE} \\
+ & \textbf{($\mu$g/m$^3$)} & \textbf{($\mu$g/m$^3$)} & \textbf{(\%)} \\
+\hline
+ARIMA & 5.90 & 6.87 & 97.1 \\
+\hline
+SARIMAX & 5.34 & 6.54 & 83.9 \\
+\hline
+Transformer (t+1) & \textbf{3.56} & \textbf{4.61} & \textbf{50.6} \\
+\hline
+\end{tabular}
+\label{tab_results}
+\end{center}
+\end{table}
+
+
+The Transformer achieves the best performance across all three metrics. The progression from ARIMA to SARIMAX (MAE: 5.90 $\rightarrow$ 5.34 $\mu$g/m$^3$, a 9\% improvement) quantifies the value of adding weekly seasonality and meteorological covariates to the model. The much larger jump from SARIMAX to Transformer (MAE: 5.34 $\rightarrow$ 3.56 $\mu$g/m$^3$, a 33\% improvement) demonstrates that the ability to capture nonlinear temporal dependencies contributes substantially more to forecast accuracy than the addition of meteorological covariates alone. Fig.~\ref{fig_bar} shows a visual comparison of all three metrics across models.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{fig_model_comparison_bar.png}}
+\caption{MAE, RMSE, and MAPE comparison across all three models on the 2022 test set.}
+\label{fig_bar}
+ \end{figure}
+
+MAPE values are elevated across all models because the test set includes many low-PM2.5 days (near zero), for which even small absolute errors yield large percentage errors. For this reason, MAE and RMSE are the primary evaluation metrics. The consistently higher RMSE than MAE across all models indicates occasional large errors concentrated around wildfire-driven spikes, which disproportionately inflate squared error.
+
+
+
+
+
+\subsection{Transformer Multi-horizon Performance}
+A key advantage of the Transformer over the SARIMAX model is its ability to produce simultaneous multi-step forecasts. Fig.~\ref{fig_t1} shows the 1-day-ahead transformer forecasting results with the actual PM2.5. Table~\ref{tab_horizon} shows forecast accuracy across all 7 horizons.
+
+
+
+
+\begin{table}[htbp]
+\caption{Transformer Performance by Forecast Horizon}
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Horizon} & \textbf{MAE ($\mu$g/m$^3$)} & \textbf{RMSE ($\mu$g/m$^3$)} \\
+\hline
+t+1 & 3.56 & 4.61 \\
+\hline
+t+2 & 4.71 & 5.84 \\
+\hline
+t+3 & 5.04 & 6.12 \\
+\hline
+t+4 & 5.44 & 6.49 \\
+\hline
+t+5 & 5.76 & 6.87 \\
+\hline
+t+6 & 5.51 & 6.53 \\
+\hline
+t+7 & 5.53 & 6.50 \\
+\hline
+\end{tabular}
+\label{tab_horizon}
+\end{center}
+\end{table}
+
+
+
+MAE increases from 3.56 $\mu$g/m$^3$ at t+1 to 5.76 $\mu$g/m$^3$ at t+5, then levels off between t+5 and t+7. This suggests the model tends toward predicting the mean at longer horizons when uncertainty is high. It is worth noting that the Transformer's t+7 MAE (5.53 $\mu$g/m$^3$) is close to SARIMAX's 1-step MAE (5.34 $\mu$g/m$^3$), which shows the Transformer still has an advantage even at 7-day ahead forecasting.
+
+
+
+
+\subsection{Forecast Visualization}
+Fig.~\ref{fig_timeline} shows the full 2017–2022 timeline comparing actual PM2.5 against all three model predictions. In the test period (2022), the Transformer closely tracks daily fluctuations, while SARIMAX captures the broad seasonal trend but smooths over short-term variation. The ARIMA baseline produces a near-flat prediction close to the long-run training mean, confirming that without seasonal structure, the model cannot anticipate day-to-day variation. Fig.~\ref{fig_comparison} provides a close-up view of the 2022 test period with all three forecasts overlaid.
+
+
+All three models fail to predict the sharp PM2.5 spike in July 2022 ($\approx$37 $\mu$g/m$^3$), consistent with a wildfire smoke intrusion event. Wildfire-driven pollution is governed by fire ignition timing and atmospheric transport conditions that are not captured in the model inputs, and represents a fundamental limitation of purely data-driven forecasting approaches. Incorporating satellite-derived fire radiative power or smoke transport indices as additional inputs could potentially address this gap.
+
+\subsection{Residual Analysis}
+Fig.~\ref{fig_resid} shows the Transformer t+1 residuals over the 2022 test period. The residual mean is $-1.22$ $\mu$g/m$^3$ and the standard deviation is 4.45 $\mu$g/m$^3$. The slight negative mean indicates the model's lighting overestimates PM2.5. This might be related to the training period from 2017 to 2020, during which the average PM2.5 concentration was relatively high due to several wildfire seasons. The overall PM2.5 level in the test year (2022) was lower than in the training period, which partly explains the slight overestimation bias. The residuals are roughly symmetric around zero with no clear trend over time, suggesting the model is reasonably well-specified. The largest errors occur around July 2022, when all three models failed to capture the wildfire-driven spike.
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=\columnwidth]{fig_transformer_residuals.png}}
+\caption{Transformer t+1 residuals over the 2022 test period (left) and residual distribution (right). Mean = $-1.22$ $\mu$g/m$^3$, std = 4.45 $\mu$g/m$^3$.}
+\label{fig_resid}
+\end{figure}
+
+
+% -------------------------------------------------------
+\section{Conclusion}
+
+
+
+This study compared three time-series forecasting models for daily PM2.5 prediction in Los Angeles County based on PurpleAir sensor data from 2017 to 2022. The encoder-only Transformer outperformed both SARIMAX and the ARIMA on the 2022 test set, achieving a 1-day ahead MAE of 3.56 $\mu$g/m$^3$ — a 40\%  and 33\% improvement over the ARIMA and SARIMAX. The three model results demonstrate that the weekly seasonal structure and meteorological covariates contribute a modest improvement, while the Transformer’s nonlinear attention-based architecture delivers substantially larger gains. The Transformer's 7-day forecast capability, even at reduced accuracy, provides a longer planning horizon than 1-step statistical forecasts and has potential value for public health advisory systems.
+
+However, the inability of all models to forecast extreme wildfire-driven pollution spikes is a key limitation of this Paper. In addition,  measurement uncertainty associated with low-cost PurpleAir sensors.  Future work could explore integrating satellite-derived wildfire and smoke data as additional inputs, probabilistic forecasting frameworks to quantify prediction uncertainty, and spatial modeling approaches that leverage the full density of the PurpleAir network across the LA area.
+
+
+
+% -------------------------------------------------------
+\section*{Acknowledgment}
+The authors thank the PurpleAir community for making sensor data publicly available.
+
+% -------------------------------------------------------
+\begin{thebibliography}{00}
+
+\bibitem{box2015}
+G.~E.~P. Box, G.~M. Jenkins, G.~C. Reinsel, and G.~M. Ljung,
+\textit{Time Series Analysis: Forecasting and Control}, 5th~ed.
+Hoboken, NJ: Wiley, 2015.
+
+\bibitem{vaswani2017}
+A.~Vaswani, N.~Shazeer, N.~Parmar, J.~Uszkoreit, L.~Jones, A.~N. Gomez, L.~Kaiser, and I.~Polosukhin,
+``Attention is all you need,''
+in \textit{Advances in Neural Information Processing Systems}, vol.~30, 2017.
+
+\bibitem{pope2002}
+C.~A. Pope~III, R.~T. Burnett, M.~J. Thun, E.~E. Calle, D.~Krewski, K.~Ito, and G.~D. Thurston,
+``Lung cancer, cardiopulmonary mortality, and long-term exposure to fine particulate air pollution,''
+\textit{JAMA}, vol.~287, no.~9, pp.~1132--1141, 2002.
+
+\bibitem{who2021}
+World Health Organization,
+\textit{WHO Global Air Quality Guidelines},
+Geneva: WHO, 2021.
+
+\bibitem{epa2024}
+U.S. Environmental Protection Agency,
+``National Ambient Air Quality Standards for PM,''
+2024. [Online]. Available: https://www.epa.gov/pm-pollution
+
+\bibitem{knaak2025}
+J.~Knaak, S.~Kim, and H.~Lee,
+``Performance evaluation of PM2.5 forecasting using SARIMAX and LSTM in the Korean Peninsula,''
+\textit{Atmosphere}, vol.~16, no.~5, p.~524, 2025.
+
+\bibitem{zhou2021}
+H.~Zhou, S.~Zhang, J.~Peng, S.~Zhang, J.~Li, H.~Xiong, and W.~Zhang,
+``Informer: Beyond efficient Transformer for long sequence time-series forecasting,''
+in \textit{Proc. AAAI Conf. Artificial Intelligence}, vol.~35, pp.~11106--11115, 2021.
+
+\end{thebibliography}
+
+\end{document}
