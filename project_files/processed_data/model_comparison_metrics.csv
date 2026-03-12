@@ -1,4 +1,0 @@
-Model,MAE,RMSE,MAPE (%)
-Transformer (t+1),3.555,4.613,50.6
-"SARIMAX(1,0,1)(1,0,1,7)",5.337,6.538,83.9
-"ARIMA(1,0,1) baseline",5.896,6.872,97.1
