@@ -8,7 +8,7 @@ This project compares statistical and deep learning methods for forecasting dail
 predictPM25/
 ├── project_files/
 │   ├── figures/
-│   ├── processed_data/
+│   ├── data/
 │   ├── best_model/
 │   ├── model_predict/
 │   └── scripts/
@@ -25,9 +25,9 @@ predictPM25/
 ```
 
 ## Notebooks
-| [LA Preprocessing](project_files/scripts/pm25_LA_preprocessing.ipynb) | PurpleAir sensor data (California), filtered to Los Angeles |
+| [LA Preprocessing](project_files/scripts/pm25_LA_preprocessing.ipynb) | PurpleAir sensor data (California), filtered to Los Angeles | ⚠️ Optional — raw CA data not included; start here only if you have the raw PurpleAir data |
 
-| [Data Cleaning](project_files/scripts/pm25_data_cleaning.ipynb) | Los Angeles data cleaning and quality checks |
+| [Data Cleaning](project_files/scripts/pm25_data_cleaning.ipynb) | Los Angeles data cleaning and quality checks **Start here** — LA daily data cleaning and quality checks |
 
 | [Exploratory Data Analysis](project_files/scripts/exploratory_data_analysis.ipynb) | Statistical analysis, distribution, seasonality, and correlation analysis |
 
@@ -42,6 +42,12 @@ predictPM25/
 - **Period**: 2017 – 2022
 - **Target variable**: PM2.5 (µg/m³)
 - **Exogenous variables**: Temperature, Humidity
+
+> **Note**: The raw PurpleAir sensor data (California-wide) is too large to include in this repository.
+> The pipeline starts from the pre-processed LA daily file (`processed_data/la_daily.csv`).
+> To reproduce from scratch, download the raw data from [PurpleAir](https://www2.purpleair.com/) 
+> and run `pm25_LA_preprocessing.ipynb` first. Otherwise, start directly from `pm25_data_cleaning.ipynb`.
+
   
 ## Models
 - **SARIMAX**: Captures linear temporal dependencies and seasonal patterns
